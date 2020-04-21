@@ -502,7 +502,7 @@ func ValidateProvider(provider sdk.AccAddress) error {
 }
 
 func ValidateServiceDeposit(deposit sdk.Coins) error {
-	if deposit.Empty() || len(deposit) != 1 || deposit[0].Denom != sdk.DefaultBondDenom || !deposit[0].IsPositive() {
+	if deposit.Empty() || len(deposit) != 1 || deposit[0].Denom != ServiceDepositCoinDenom || !deposit[0].IsPositive() {
 		return sdkerrors.Wrap(ErrInvalidDeposit, "")
 	}
 

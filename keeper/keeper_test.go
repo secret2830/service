@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	testCoin1 = sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10000))
-	testCoin2 = sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100))
+	testCoin1 = sdk.NewCoin(types.ServiceDepositCoinDenom, sdk.NewIntWithDecimal(10000, types.ServiceDepositCoinDecimal))
+	testCoin2 = sdk.NewCoin(types.ServiceDepositCoinDenom, sdk.NewIntWithDecimal(100, types.ServiceDepositCoinDecimal))
 
 	testServiceName = "test-service"
 	testServiceDesc = "test-service-desc"
@@ -53,7 +53,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.app = app
 	suite.keeper = &app.ServiceKeeper
 
-	suite.app.InitChainer(suite.ctx, abci.RequestInitChain{})
+	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 }
 
 func (suite *KeeperTestSuite) setServiceDefinition() {
@@ -86,6 +86,7 @@ func (suite *KeeperTestSuite) TestDefineService() {
 
 func (suite *KeeperTestSuite) TestBindService() {
 	suite.setServiceDefinition()
+	suite.app.BankKeeper.AddCoins(suite.ctx, testProvider, testDeposit.Add(testAddedDeposit...))
 
 	err := suite.keeper.AddServiceBinding(suite.ctx, testServiceName, testProvider, testDeposit, testPricing, testMinRespTime)
 	suite.NoError(err)

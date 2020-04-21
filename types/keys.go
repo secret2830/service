@@ -28,6 +28,12 @@ const (
 
 	// TaxAccName is the root string for the service tax account address
 	TaxAccName = "service_tax_account"
+
+	// ServiceDepositCoinDenom is the coin denom for service deposit
+	ServiceDepositCoinDenom = sdk.DefaultBondDenom
+
+	// ServiceDepositCoinDecimal is the coin decimals for service deposit
+	ServiceDepositCoinDecimal = 6
 )
 
 var (

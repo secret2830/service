@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	testCoin1 = sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10000))
-	testCoin2 = sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100))
+	testCoin1 = sdk.NewCoin(types.ServiceDepositCoinDenom, sdk.NewInt(10000))
+	testCoin2 = sdk.NewCoin(types.ServiceDepositCoinDenom, sdk.NewInt(100))
 
 	testServiceName = "test-service"
 	testServiceDesc = "test-service-desc"

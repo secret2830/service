@@ -406,10 +406,10 @@ func (k Keeper) getMinDeposit(ctx sdk.Context, pricing types.Pricing) sdk.Coins 
 	minDepositMultiple := sdk.NewInt(params.MinDepositMultiple)
 	minDepositParam := params.MinDeposit
 
-	price := pricing.Price.AmountOf(sdk.DefaultBondDenom)
+	price := pricing.Price.AmountOf(types.ServiceDepositCoinDenom)
 
 	// minimum deposit = max(price * minDepositMultiple, minDepositParam)
-	minDeposit := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, price.Mul(minDepositMultiple)))
+	minDeposit := sdk.NewCoins(sdk.NewCoin(types.ServiceDepositCoinDenom, price.Mul(minDepositMultiple)))
 	if minDeposit.IsAllLT(minDepositParam) {
 		minDeposit = minDepositParam
 	}
