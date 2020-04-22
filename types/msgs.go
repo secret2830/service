@@ -930,7 +930,7 @@ func ValidateProvider(provider sdk.AccAddress) error {
 }
 
 func ValidateServiceDeposit(deposit sdk.Coins) error {
-	if !deposit.IsAllPositive() {
+	if !deposit.IsValid() || !deposit.IsAllPositive() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, "invalid deposit")
 	}
 
