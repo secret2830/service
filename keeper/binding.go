@@ -423,7 +423,7 @@ func (k Keeper) GetWithdrawAddress(ctx sdk.Context, owner sdk.AccAddress) sdk.Ac
 // IterateWithdrawAddresses iterates through all withdrawal addresses
 func (k Keeper) IterateWithdrawAddresses(
 	ctx sdk.Context,
-	op func(provider sdk.AccAddress, withdrawAddress sdk.AccAddress) (stop bool),
+	op func(owner sdk.AccAddress, withdrawAddress sdk.AccAddress) (stop bool),
 ) {
 	store := ctx.KVStore(k.storeKey)
 
