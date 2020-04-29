@@ -40,7 +40,7 @@ var (
 	ErrRequestContextCompleted   = sdkerrors.Register(ModuleName, 31, "request context completed")
 	ErrCallbackRegistered        = sdkerrors.Register(ModuleName, 32, "callback registered")
 	ErrCallbackNotRegistered     = sdkerrors.Register(ModuleName, 33, "callback not registered")
-	ErrNoEarnedFees              = sdkerrors.Register(ModuleName, 34, "no earned fees")
+	ErrNoEarnedFees              = sdkerrors.Register(ModuleName, 34, "no earned fees or being zero")
 
 	ErrInvalidRequestInput   = sdkerrors.Register(ModuleName, 35, "invalid request input")
 	ErrInvalidResponseOutput = sdkerrors.Register(ModuleName, 36, "invalid response output")

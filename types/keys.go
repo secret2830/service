@@ -53,8 +53,8 @@ var (
 	ActiveRequestByIDKey         = []byte{0x13} // prefix for active requests by ID
 	ResponseKey                  = []byte{0x14} // prefix for response
 	RequestVolumeKey             = []byte{0x15} // prefix for request volume
-	EarnedFeesKey                = []byte{0x16} // prefix for earned fees
-	EarnedFeesByOwnerKey         = []byte{0x17} // prefix for earned fees by owner
+	EarnedFeesKey                = []byte{0x16} // prefix for provider earned fees
+	EarnedFeesByOwnerKey         = []byte{0x17} // prefix for provider earned fees by owner
 	OwnerEarnedFeesKey           = []byte{0x18} // prefix for owner earned fees
 )
 
