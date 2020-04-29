@@ -929,6 +929,14 @@ func ValidateProvider(provider sdk.AccAddress) error {
 	return nil
 }
 
+func ValidateOwner(owner sdk.AccAddress) error {
+	if len(owner) == 0 {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "owner missing")
+	}
+
+	return nil
+}
+
 func ValidateServiceDeposit(deposit sdk.Coins) error {
 	if !deposit.IsValid() || !deposit.IsAllPositive() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, "invalid deposit")
@@ -937,9 +945,9 @@ func ValidateServiceDeposit(deposit sdk.Coins) error {
 	return nil
 }
 
-func ValidateMinRespTime(minRespTime uint64) error {
-	if minRespTime == 0 {
-		return sdkerrors.Wrap(ErrInvalidMinRespTime, "minimum response time must be greater than 0")
+func ValidateQoS(qos uint64) error {
+	if qos == 0 {
+		return sdkerrors.Wrap(ErrInvalidQoS, "qos must be greater than 0")
 	}
 
 	return nil

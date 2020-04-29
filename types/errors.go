@@ -15,7 +15,7 @@ var (
 
 	ErrInvalidDeposit            = sdkerrors.Register(ModuleName, 7, "invalid deposit")
 	ErrInvalidPricing            = sdkerrors.Register(ModuleName, 8, "invalid pricing")
-	ErrInvalidMinRespTime        = sdkerrors.Register(ModuleName, 9, "invalid minimul response time")
+	ErrInvalidQoS                = sdkerrors.Register(ModuleName, 9, "invalid qos")
 	ErrServiceBindingExists      = sdkerrors.Register(ModuleName, 10, "service binding already exists")
 	ErrUnknownServiceBinding     = sdkerrors.Register(ModuleName, 11, "unknown service binding")
 	ErrServiceBindingUnavailable = sdkerrors.Register(ModuleName, 12, "service binding unavailable")
@@ -34,7 +34,6 @@ var (
 	ErrUnknownResponse           = sdkerrors.Register(ModuleName, 24, "unknown response")
 	ErrUnknownRequestContext     = sdkerrors.Register(ModuleName, 25, "unknown request context")
 	ErrInvalidRequestContextID   = sdkerrors.Register(ModuleName, 26, "invalid request context ID")
-	ErrNotAuthorized             = sdkerrors.Register(ModuleName, 27, "not authorized")
 	ErrRequestContextNonRepeated = sdkerrors.Register(ModuleName, 28, "request context non repeated")
 	ErrRequestContextNotRunning  = sdkerrors.Register(ModuleName, 29, "request context not running")
 	ErrRequestContextNotPaused   = sdkerrors.Register(ModuleName, 30, "request context not paused")
@@ -48,4 +47,5 @@ var (
 	ErrInvalidResponseResult = sdkerrors.Register(ModuleName, 37, "invalid response result")
 
 	ErrInvalidSchemaName = sdkerrors.Register(ModuleName, 38, "invalid service schema name")
+	ErrNotAuthorized     = sdkerrors.Register(ModuleName, 27, "not authorized")
 )
