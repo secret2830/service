@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -18,7 +19,8 @@ func (k Keeper) AddServiceBinding(
 	provider sdk.AccAddress,
 	deposit sdk.Coins,
 	pricing string,
-	minRespTime uint64,
+	qos uint64,
+	owner sdk.AccAddress,
 ) error {
 	if _, found := k.GetServiceDefinition(ctx, serviceName); !found {
 		return sdkerrors.Wrap(types.ErrUnknownServiceDefinition, serviceName)
@@ -33,8 +35,8 @@ func (k Keeper) AddServiceBinding(
 	}
 
 	maxReqTimeout := k.MaxRequestTimeout(ctx)
-	if minRespTime > uint64(maxReqTimeout) {
-		return sdkerrors.Wrapf(types.ErrInvalidMinRespTime, "minimum response time [%d] must not be greater than maximum request timeout [%d]", minRespTime, maxReqTimeout)
+	if qos > uint64(maxReqTimeout) {
+		return sdkerrors.Wrapf(types.ErrInvalidQoS, "qos [%d] must not be greater than maximum request timeout [%d]", qos, maxReqTimeout)
 	}
 
 	parsedPricing, err := k.ParsePricing(ctx, pricing)
@@ -61,9 +63,10 @@ func (k Keeper) AddServiceBinding(
 	available := true
 	disabledTime := time.Time{}
 
-	svcBinding := types.NewServiceBinding(serviceName, provider, deposit, pricing, minRespTime, available, disabledTime)
-	k.SetServiceBinding(ctx, svcBinding)
+	svcBinding := types.NewServiceBinding(serviceName, provider, deposit, pricing, qos, available, disabledTime, owner)
 
+	k.SetServiceBinding(ctx, svcBinding)
+	k.SetOwnerServiceBinding(ctx, svcBinding)
 	k.SetPricing(ctx, serviceName, provider, parsedPricing)
 
 	return nil
@@ -76,22 +79,27 @@ func (k Keeper) UpdateServiceBinding(
 	provider sdk.AccAddress,
 	deposit sdk.Coins,
 	pricing string,
-	minRespTime uint64,
+	qos uint64,
+	owner sdk.AccAddress,
 ) error {
 	binding, found := k.GetServiceBinding(ctx, serviceName, provider)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknownServiceBinding, "")
 	}
 
+	if !owner.Equals(binding.Owner) {
+		return sdkerrors.Wrap(types.ErrNotAuthorized, "owner not matching")
+	}
+
 	updated := false
 
-	if minRespTime != 0 {
+	if qos != 0 {
 		maxReqTimeout := k.MaxRequestTimeout(ctx)
-		if minRespTime > uint64(maxReqTimeout) {
-			return sdkerrors.Wrapf(types.ErrInvalidMinRespTime, "minimum response time [%d] must not be greater than maximum request timeout [%d]", minRespTime, maxReqTimeout)
+		if qos > uint64(maxReqTimeout) {
+			return sdkerrors.Wrapf(types.ErrInvalidQoS, "qos [%d] must not be greater than maximum request timeout [%d]", qos, maxReqTimeout)
 		}
 
-		binding.MinRespTime = minRespTime
+		binding.QoS = qos
 		updated = true
 	}
 
@@ -149,10 +157,19 @@ func (k Keeper) UpdateServiceBinding(
 }
 
 // DisableServiceBinding disables the specified service binding
-func (k Keeper) DisableServiceBinding(ctx sdk.Context, serviceName string, provider sdk.AccAddress) error {
+func (k Keeper) DisableServiceBinding(
+	ctx sdk.Context,
+	serviceName string,
+	provider,
+	owner sdk.AccAddress,
+) error {
 	binding, found := k.GetServiceBinding(ctx, serviceName, provider)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknownServiceBinding, "")
+	}
+
+	if !owner.Equals(binding.Owner) {
+		return sdkerrors.Wrap(types.ErrNotAuthorized, "owner not matching")
 	}
 
 	if !binding.Available {
@@ -168,10 +185,20 @@ func (k Keeper) DisableServiceBinding(ctx sdk.Context, serviceName string, provi
 }
 
 // EnableServiceBinding enables the specified service binding
-func (k Keeper) EnableServiceBinding(ctx sdk.Context, serviceName string, provider sdk.AccAddress, deposit sdk.Coins) error {
+func (k Keeper) EnableServiceBinding(
+	ctx sdk.Context,
+	serviceName string,
+	provider sdk.AccAddress,
+	deposit sdk.Coins,
+	owner sdk.AccAddress,
+) error {
 	binding, found := k.GetServiceBinding(ctx, serviceName, provider)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknownServiceBinding, "")
+	}
+
+	if !owner.Equals(binding.Owner) {
+		return sdkerrors.Wrap(types.ErrNotAuthorized, "owner not matching")
 	}
 
 	if binding.Available {
@@ -210,10 +237,14 @@ func (k Keeper) EnableServiceBinding(ctx sdk.Context, serviceName string, provid
 }
 
 // RefundDeposit refunds the deposit from the specified service binding
-func (k Keeper) RefundDeposit(ctx sdk.Context, serviceName string, provider sdk.AccAddress) error {
+func (k Keeper) RefundDeposit(ctx sdk.Context, serviceName string, provider, owner sdk.AccAddress) error {
 	binding, found := k.GetServiceBinding(ctx, serviceName, provider)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknownServiceBinding, "")
+	}
+
+	if !owner.Equals(binding.Owner) {
+		return sdkerrors.Wrap(types.ErrNotAuthorized, "owner not matching")
 	}
 
 	if binding.Available {
@@ -284,6 +315,35 @@ func (k Keeper) GetServiceBinding(ctx sdk.Context, serviceName string, provider 
 	return svcBinding, true
 }
 
+// SetOwnerServiceBinding sets the owner service binding
+func (k Keeper) SetOwnerServiceBinding(ctx sdk.Context, svcBinding types.ServiceBinding) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.GetOwnerServiceBindingKey(svcBinding.Owner, svcBinding.ServiceName, svcBinding.Provider), []byte{})
+}
+
+// GetOwnerServiceBindings retrieves the service bindings with the specified service name and owner
+func (k Keeper) GetOwnerServiceBindings(ctx sdk.Context, owner sdk.AccAddress, serviceName string) []types.ServiceBinding {
+	store := ctx.KVStore(k.storeKey)
+
+	bindings := make([]types.ServiceBinding, 0)
+
+	iterator := sdk.KVStorePrefixIterator(store, types.GetOwnerBindingsSubspace(owner, serviceName))
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		bindingKey := bytes.Split(iterator.Key()[sdk.AddrLen+1:], types.EmptyByte)
+		serviceName := string(bindingKey[0])
+		provider := sdk.AccAddress(bindingKey[1])
+
+		binding, found := k.GetServiceBinding(ctx, serviceName, provider)
+		if found {
+			bindings = append(bindings, binding)
+		}
+	}
+
+	return bindings
+}
+
 // ParsePricing parses the given string to Pricing
 func (k Keeper) ParsePricing(ctx sdk.Context, pricing string) (p types.Pricing, err error) {
 	var rawPricing types.RawPricing
@@ -342,19 +402,19 @@ func (k Keeper) GetPricing(ctx sdk.Context, serviceName string, provider sdk.Acc
 	return pricing
 }
 
-// SetWithdrawAddress sets the withdrawal address for the specified provider
-func (k Keeper) SetWithdrawAddress(ctx sdk.Context, provider, withdrawAddr sdk.AccAddress) {
+// SetWithdrawAddress sets the withdrawal address for the specified owner
+func (k Keeper) SetWithdrawAddress(ctx sdk.Context, owner, withdrawAddr sdk.AccAddress) {
 	store := ctx.KVStore(k.storeKey)
-	store.Set(types.GetWithdrawAddrKey(provider), withdrawAddr.Bytes())
+	store.Set(types.GetWithdrawAddrKey(owner), withdrawAddr.Bytes())
 }
 
-// GetWithdrawAddress gets the withdrawal address of the specified provider
-func (k Keeper) GetWithdrawAddress(ctx sdk.Context, provider sdk.AccAddress) sdk.AccAddress {
+// GetWithdrawAddress gets the withdrawal address of the specified owner
+func (k Keeper) GetWithdrawAddress(ctx sdk.Context, owner sdk.AccAddress) sdk.AccAddress {
 	store := ctx.KVStore(k.storeKey)
 
-	bz := store.Get(types.GetWithdrawAddrKey(provider))
+	bz := store.Get(types.GetWithdrawAddrKey(owner))
 	if bz == nil {
-		return provider
+		return owner
 	}
 
 	return sdk.AccAddress(bz)
@@ -371,10 +431,10 @@ func (k Keeper) IterateWithdrawAddresses(
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
-		providerAddress := sdk.AccAddress(iterator.Key()[1:])
+		ownerAddress := sdk.AccAddress(iterator.Key()[1:])
 		withdrawAddress := sdk.AccAddress(iterator.Value())
 
-		if stop := op(providerAddress, withdrawAddress); stop {
+		if stop := op(ownerAddress, withdrawAddress); stop {
 			break
 		}
 	}
