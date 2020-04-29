@@ -129,7 +129,7 @@ func GetCmdBindService(cdc *codec.Codec) *cobra.Command {
 
 Example:
 $ %s tx service bind --service-name=<service-name> --deposit=1stake 
---pricing=<pricing content or path/to/pricing.json> --min-resp-time=50 --from mykey
+--pricing=<pricing content or path/to/pricing.json> --qos=50 --from mykey
 `,
 				version.ClientName,
 			),
@@ -139,10 +139,23 @@ $ %s tx service bind --service-name=<service-name> --deposit=1stake
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
+
+			var err error
+			var provider sdk.AccAddress
+
+			providerStr := viper.GetString(FlagProvider)
+			if len(providerStr) > 0 {
+				provider, err = sdk.AccAddressFromBech32(providerStr)
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
 
 			serviceName := viper.GetString(FlagServiceName)
-			minRespTime := uint64(viper.GetInt64(FlagMinRespTime))
+			qos := uint64(viper.GetInt64(FlagQoS))
 
 			depositStr := viper.GetString(FlagDeposit)
 			deposit, err := sdk.ParseCoins(depositStr)
@@ -172,7 +185,7 @@ $ %s tx service bind --service-name=<service-name> --deposit=1stake
 
 			pricing = buf.String()
 
-			msg := types.NewMsgBindService(serviceName, provider, deposit, pricing, minRespTime)
+			msg := types.NewMsgBindService(serviceName, provider, deposit, pricing, qos, owner)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -185,7 +198,7 @@ $ %s tx service bind --service-name=<service-name> --deposit=1stake
 	_ = cmd.MarkFlagRequired(FlagServiceName)
 	_ = cmd.MarkFlagRequired(FlagDeposit)
 	_ = cmd.MarkFlagRequired(FlagPricing)
-	_ = cmd.MarkFlagRequired(FlagMinRespTime)
+	_ = cmd.MarkFlagRequired(FlagQoS)
 
 	return cmd
 }
@@ -193,27 +206,38 @@ $ %s tx service bind --service-name=<service-name> --deposit=1stake
 // GetCmdUpdateServiceBinding implements updating a service binding command
 func GetCmdUpdateServiceBinding(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update-binding [service-name]",
+		Use:   "update-binding [service-name] [provider-address]",
 		Short: "Update an existing service binding",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Update an existing service binding.
 
 Example:
-$ %s tx service update-binding <service-name> --deposit=1stake 
---pricing=<pricing content or path/to/pricing.json> --min-resp-time=50 --from mykey
+$ %s tx service update-binding <service-name> <provider-address> --deposit=1stake 
+--pricing=<pricing content or path/to/pricing.json> --qos=50 --from mykey
 `,
 				version.ClientName,
 			),
 		),
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
 			var err error
+			var provider sdk.AccAddress
+
+			if len(args) > 1 {
+				provider, err = sdk.AccAddressFromBech32(args[1])
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
+
 			var deposit sdk.Coins
 
 			depositStr := viper.GetString(FlagDeposit)
@@ -248,9 +272,9 @@ $ %s tx service update-binding <service-name> --deposit=1stake
 				pricing = buf.String()
 			}
 
-			minRespTime := uint64(viper.GetInt64(FlagMinRespTime))
+			qos := uint64(viper.GetInt64(FlagQoS))
 
-			msg := types.NewMsgUpdateServiceBinding(args[0], provider, deposit, pricing, minRespTime)
+			msg := types.NewMsgUpdateServiceBinding(args[0], provider, deposit, pricing, qos, owner)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -268,9 +292,9 @@ $ %s tx service update-binding <service-name> --deposit=1stake
 func GetCmdSetWithdrawAddr(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-withdraw-addr [withdrawal-address]",
-		Short: "Set a withdrawal address for a provider",
+		Short: "Set a withdrawal address for an owner",
 		Long: strings.TrimSpace(
-			fmt.Sprintf(`Set a withdrawal address for a provider.
+			fmt.Sprintf(`Set a withdrawal address for an owner.
 
 Example:
 $ %s tx service set-withdraw-addr <withdrawal-address> --from mykey
@@ -284,14 +308,14 @@ $ %s tx service set-withdraw-addr <withdrawal-address> --from mykey
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
 			withdrawAddr, err := sdk.AccAddressFromBech32(args[0])
 			if err != nil {
 				return err
 			}
 
-			msg := types.NewMsgSetWithdrawAddress(provider, withdrawAddr)
+			msg := types.NewMsgSetWithdrawAddress(owner, withdrawAddr)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -306,26 +330,38 @@ $ %s tx service set-withdraw-addr <withdrawal-address> --from mykey
 // GetCmdDisableServiceBinding implements disabling a service binding command
 func GetCmdDisableServiceBinding(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "disable [service-name]",
+		Use:   "disable [service-name] [provider-address]",
 		Short: "Disable an available service binding",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Disable an available service binding.
 
 Example:
-$ %s tx service disable <service-name> --from mykey
+$ %s tx service disable <service-name> <provider-address> --from mykey
 `,
 				version.ClientName,
 			),
 		),
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
-			msg := types.NewMsgDisableServiceBinding(args[0], provider)
+			var err error
+			var provider sdk.AccAddress
+
+			if len(args) > 1 {
+				provider, err = sdk.AccAddressFromBech32(args[1])
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
+
+			msg := types.NewMsgDisableServiceBinding(args[0], provider, owner)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -340,26 +376,37 @@ $ %s tx service disable <service-name> --from mykey
 // GetCmdEnableServiceBinding implements enabling a service binding command
 func GetCmdEnableServiceBinding(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "enable [service-name]",
+		Use:   "enable [service-name] [provider-address]",
 		Short: "Enable an unavailable service binding",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Enable an unavailable service binding.
 
 Example:
-$ %s tx service enable <service-name> --deposit=1stake --from mykey
+$ %s tx service enable <service-name> <provider-address> --deposit=1stake --from mykey
 `,
 				version.ClientName,
 			),
 		),
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
 			var err error
+			var provider sdk.AccAddress
+
+			if len(args) > 1 {
+				provider, err = sdk.AccAddressFromBech32(args[1])
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
+
 			var deposit sdk.Coins
 
 			depositStr := viper.GetString(FlagDeposit)
@@ -370,7 +417,7 @@ $ %s tx service enable <service-name> --deposit=1stake --from mykey
 				}
 			}
 
-			msg := types.NewMsgEnableServiceBinding(args[0], provider, deposit)
+			msg := types.NewMsgEnableServiceBinding(args[0], provider, deposit, owner)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -387,26 +434,38 @@ $ %s tx service enable <service-name> --deposit=1stake --from mykey
 // GetCmdRefundServiceDeposit implements refunding deposit command
 func GetCmdRefundServiceDeposit(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "refund-deposit [service-name]",
+		Use:   "refund-deposit [service-name] [provider-address]",
 		Short: "Refund all deposit from a service binding",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Refund all deposit from a service binding.
 
 Example:
-$ %s tx service refund-deposit <service-name> --from mykey
+$ %s tx service refund-deposit <service-name> <provider-address> --from mykey
 `,
 				version.ClientName,
 			),
 		),
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
-			msg := types.NewMsgRefundServiceDeposit(args[0], provider)
+			var err error
+			var provider sdk.AccAddress
+
+			if len(args) > 1 {
+				provider, err = sdk.AccAddressFromBech32(args[1])
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
+
+			msg := types.NewMsgRefundServiceDeposit(args[0], provider, owner)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -748,17 +807,39 @@ func GetCmdUpdateRequestContext(cdc *codec.Codec) *cobra.Command {
 // GetCmdWithdrawEarnedFees implements withdrawing earned fees command
 func GetCmdWithdrawEarnedFees(cdc *codec.Codec) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "withdraw-fees",
-		Short:   "Withdraw the earned fees of a provider",
-		Example: "iriscli service withdraw-fees --chain-id=<chain-id> --from=<key-name> --fee=0.3iris",
+		Use:   "withdraw-fees [provider-address]",
+		Short: "Withdraw the earned fees of a provider or owner",
+		Long: strings.TrimSpace(
+			fmt.Sprintf(`Withdraw the earned fees of the specified provider, 
+for all providers of the owner if the provider not given.
+
+Example:
+$ %s tx service withdraw-fees <provider-address> --from mykey
+`,
+				version.ClientName,
+			),
+		),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(auth.DefaultTxEncoder(cdc))
 			cliCtx := context.NewCLIContextWithInput(inBuf).WithCodec(cdc)
 
-			provider := cliCtx.GetFromAddress()
+			owner := cliCtx.GetFromAddress()
 
-			msg := types.NewMsgWithdrawEarnedFees(provider)
+			var err error
+			var provider sdk.AccAddress
+
+			if len(args) > 1 {
+				provider, err = sdk.AccAddressFromBech32(args[1])
+				if err != nil {
+					return err
+				}
+			} else {
+				provider = owner
+			}
+
+			msg := types.NewMsgWithdrawEarnedFees(owner, provider)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
