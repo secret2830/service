@@ -30,6 +30,11 @@ func (k Keeper) AddServiceBinding(
 		return sdkerrors.Wrap(types.ErrServiceBindingExists, "")
 	}
 
+	currentOwner, found := k.GetOwner(ctx, provider)
+	if found && !owner.Equals(currentOwner) {
+		return sdkerrors.Wrap(types.ErrNotAuthorized, "owner not matching")
+	}
+
 	if err := k.validateDeposit(ctx, deposit); err != nil {
 		return err
 	}
@@ -53,9 +58,9 @@ func (k Keeper) AddServiceBinding(
 		return sdkerrors.Wrapf(types.ErrInvalidDeposit, "insufficient deposit: minimum deposit %s, %s got", minDeposit, deposit)
 	}
 
-	// Send coins from provider's account to the deposit module account
+	// Send coins from owner's account to the deposit module account
 	if err := k.supplyKeeper.SendCoinsFromAccountToModule(
-		ctx, provider, types.DepositAccName, deposit,
+		ctx, owner, types.DepositAccName, deposit,
 	); err != nil {
 		return err
 	}
@@ -68,6 +73,11 @@ func (k Keeper) AddServiceBinding(
 	k.SetServiceBinding(ctx, svcBinding)
 	k.SetOwnerServiceBinding(ctx, svcBinding)
 	k.SetPricing(ctx, serviceName, provider, parsedPricing)
+
+	if currentOwner.Empty() {
+		k.SetOwner(ctx, provider, owner)
+		k.SetOwnerProvider(ctx, owner, provider)
+	}
 
 	return nil
 }
@@ -141,9 +151,9 @@ func (k Keeper) UpdateServiceBinding(
 	}
 
 	if !deposit.Empty() {
-		// Send coins from provider's account to the deposit module account
+		// Send coins from owner's account to the deposit module account
 		if err := k.supplyKeeper.SendCoinsFromAccountToModule(
-			ctx, provider, types.DepositAccName, deposit,
+			ctx, owner, types.DepositAccName, deposit,
 		); err != nil {
 			return err
 		}
@@ -220,9 +230,9 @@ func (k Keeper) EnableServiceBinding(
 	}
 
 	if !deposit.Empty() {
-		// Send coins from provider's account to the deposit module account
+		// Send coins from owner's account to the deposit module account
 		if err := k.supplyKeeper.SendCoinsFromAccountToModule(
-			ctx, provider, types.DepositAccName, deposit,
+			ctx, owner, types.DepositAccName, deposit,
 		); err != nil {
 			return err
 		}
@@ -262,9 +272,9 @@ func (k Keeper) RefundDeposit(ctx sdk.Context, serviceName string, provider, own
 		return sdkerrors.Wrapf(types.ErrIncorrectRefundTime, "%v", refundableTime)
 	}
 
-	// Send coins from the deposit module account to the provider's account
+	// Send coins from the deposit module account to the owner's account
 	if err := k.supplyKeeper.SendCoinsFromModuleToAccount(
-		ctx, types.DepositAccName, binding.Provider, binding.Deposit,
+		ctx, types.DepositAccName, binding.Owner, binding.Deposit,
 	); err != nil {
 		return err
 	}
@@ -285,7 +295,7 @@ func (k Keeper) RefundDeposits(ctx sdk.Context) error {
 		k.cdc.MustUnmarshalBinaryLengthPrefixed(iterator.Value(), &binding)
 
 		if err := k.supplyKeeper.SendCoinsFromModuleToAccount(
-			ctx, types.DepositAccName, binding.Provider, binding.Deposit,
+			ctx, types.DepositAccName, binding.Owner, binding.Deposit,
 		); err != nil {
 			return err
 		}
@@ -342,6 +352,39 @@ func (k Keeper) GetOwnerServiceBindings(ctx sdk.Context, owner sdk.AccAddress, s
 	}
 
 	return bindings
+}
+
+// SetOwner sets an owner for the specified provider
+func (k Keeper) SetOwner(ctx sdk.Context, provider, owner sdk.AccAddress) {
+	store := ctx.KVStore(k.storeKey)
+
+	bz := k.cdc.MustMarshalBinaryLengthPrefixed(owner)
+	store.Set(types.GetOwnerKey(provider), bz)
+}
+
+// GetOwner gets the owner for the specified provider
+func (k Keeper) GetOwner(ctx sdk.Context, provider sdk.AccAddress) (addr sdk.AccAddress, found bool) {
+	store := ctx.KVStore(k.storeKey)
+
+	bz := store.Get(types.GetOwnerKey(provider))
+	if bz == nil {
+		return addr, false
+	}
+
+	k.cdc.MustUnmarshalBinaryLengthPrefixed(bz, &addr)
+	return addr, true
+}
+
+// SetOwnerProvider sets the provider with the owner
+func (k Keeper) SetOwnerProvider(ctx sdk.Context, owner, provider sdk.AccAddress) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.GetOwnerProviderKey(owner, provider), []byte{})
+}
+
+// OwnerProvidersIterator returns an iterator for all providers of the specified owner
+func (k Keeper) OwnerProvidersIterator(ctx sdk.Context, owner sdk.AccAddress) sdk.Iterator {
+	store := ctx.KVStore(k.storeKey)
+	return sdk.KVStorePrefixIterator(store, types.GetOwnerProvidersSubspace(owner))
 }
 
 // ParsePricing parses the given string to Pricing

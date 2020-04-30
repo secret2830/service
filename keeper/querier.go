@@ -290,7 +290,7 @@ func queryEarnedFees(ctx sdk.Context, req abci.RequestQuery, k Keeper) ([]byte, 
 
 	fees, found := k.GetEarnedFees(ctx, params.Provider)
 	if !found {
-		return nil, sdkerrors.Wrapf(types.ErrInvalidEarnedFees, "no earned fees for %s",
+		return nil, sdkerrors.Wrapf(types.ErrNoEarnedFees, "no earned fees for %s",
 			params.Provider.String())
 	}
 
