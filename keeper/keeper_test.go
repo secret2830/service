@@ -403,6 +403,7 @@ func (suite *KeeperTestSuite) TestKeeper_Respond_Service() {
 	_, _ = suite.app.BankKeeper.AddCoins(suite.ctx, provider, initCoins)
 
 	suite.setServiceDefinition()
+	suite.keeper.SetOwner(suite.ctx, provider, testOwner)
 
 	blockHeight := int64(1000)
 	ctx = ctx.WithBlockHeight(blockHeight)
