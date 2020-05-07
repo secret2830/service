@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"regexp"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -596,15 +594,15 @@ func (msg MsgCallService) GetSigners() []sdk.AccAddress {
 
 // MsgRespondService defines a message to respond to a service request
 type MsgRespondService struct {
-	RequestID tmbytes.HexBytes `json:"request_id"`
-	Provider  sdk.AccAddress   `json:"provider"`
-	Result    string           `json:"result"`
-	Output    string           `json:"output"`
+	RequestID HexBytes       `json:"request_id"`
+	Provider  sdk.AccAddress `json:"provider"`
+	Result    string         `json:"result"`
+	Output    string         `json:"output"`
 }
 
 // NewMsgRespondService creates a new MsgRespondService instance
 func NewMsgRespondService(
-	requestID tmbytes.HexBytes,
+	requestID HexBytes,
 	provider sdk.AccAddress,
 	result string,
 	output string,
@@ -664,12 +662,12 @@ func (msg MsgRespondService) GetSigners() []sdk.AccAddress {
 
 // MsgPauseRequestContext defines a message to suspend a request context
 type MsgPauseRequestContext struct {
-	RequestContextID tmbytes.HexBytes `json:"request_context_id"`
-	Consumer         sdk.AccAddress   `json:"consumer"`
+	RequestContextID HexBytes       `json:"request_context_id"`
+	Consumer         sdk.AccAddress `json:"consumer"`
 }
 
 // NewMsgPauseRequestContext creates a new MsgPauseRequestContext instance
-func NewMsgPauseRequestContext(requestContextID tmbytes.HexBytes, consumer sdk.AccAddress) MsgPauseRequestContext {
+func NewMsgPauseRequestContext(requestContextID HexBytes, consumer sdk.AccAddress) MsgPauseRequestContext {
 	return MsgPauseRequestContext{
 		RequestContextID: requestContextID,
 		Consumer:         consumer,
@@ -709,12 +707,12 @@ func (msg MsgPauseRequestContext) GetSigners() []sdk.AccAddress {
 
 // MsgStartRequestContext defines a message to resume a request context
 type MsgStartRequestContext struct {
-	RequestContextID tmbytes.HexBytes `json:"request_context_id"`
-	Consumer         sdk.AccAddress   `json:"consumer"`
+	RequestContextID HexBytes       `json:"request_context_id"`
+	Consumer         sdk.AccAddress `json:"consumer"`
 }
 
 // NewMsgStartRequestContext creates a new MsgStartRequestContext instance
-func NewMsgStartRequestContext(requestContextID tmbytes.HexBytes, consumer sdk.AccAddress) MsgStartRequestContext {
+func NewMsgStartRequestContext(requestContextID HexBytes, consumer sdk.AccAddress) MsgStartRequestContext {
 	return MsgStartRequestContext{
 		RequestContextID: requestContextID,
 		Consumer:         consumer,
@@ -754,12 +752,12 @@ func (msg MsgStartRequestContext) GetSigners() []sdk.AccAddress {
 
 // MsgKillRequestContext defines a message to terminate a request context
 type MsgKillRequestContext struct {
-	RequestContextID tmbytes.HexBytes `json:"request_context_id"`
-	Consumer         sdk.AccAddress   `json:"consumer"`
+	RequestContextID HexBytes       `json:"request_context_id"`
+	Consumer         sdk.AccAddress `json:"consumer"`
 }
 
 // NewMsgKillRequestContext creates a new MsgKillRequestContext instance
-func NewMsgKillRequestContext(requestContextID tmbytes.HexBytes, consumer sdk.AccAddress) MsgKillRequestContext {
+func NewMsgKillRequestContext(requestContextID HexBytes, consumer sdk.AccAddress) MsgKillRequestContext {
 	return MsgKillRequestContext{
 		RequestContextID: requestContextID,
 		Consumer:         consumer,
@@ -799,7 +797,7 @@ func (msg MsgKillRequestContext) GetSigners() []sdk.AccAddress {
 
 // MsgUpdateRequestContext defines a message to update a request context
 type MsgUpdateRequestContext struct {
-	RequestContextID  tmbytes.HexBytes `json:"request_context_id"`
+	RequestContextID  HexBytes         `json:"request_context_id"`
 	Providers         []sdk.AccAddress `json:"providers"`
 	ServiceFeeCap     sdk.Coins        `json:"service_fee_cap"`
 	Timeout           int64            `json:"timeout"`
@@ -810,7 +808,7 @@ type MsgUpdateRequestContext struct {
 
 // NewMsgUpdateRequestContext creates a new MsgUpdateRequestContext instance
 func NewMsgUpdateRequestContext(
-	requestContextID tmbytes.HexBytes,
+	requestContextID HexBytes,
 	providers []sdk.AccAddress,
 	serviceFeeCap sdk.Coins,
 	timeout int64,
