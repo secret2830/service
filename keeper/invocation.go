@@ -79,6 +79,10 @@ func (k Keeper) CreateRequestContext(
 		return nil, err
 	}
 
+	if err := k.validateServiceFeeCap(ctx, serviceFeeCap); err != nil {
+		return nil, err
+	}
+
 	maxRequestTimeout := k.MaxRequestTimeout(ctx)
 	if timeout > maxRequestTimeout {
 		return nil, sdkerrors.Wrapf(types.ErrInvalidTimeout, "timeout [%d] must not be greater than the max request timeout [%d]", timeout, maxRequestTimeout)
@@ -168,6 +172,14 @@ func (k Keeper) UpdateRequestContext(
 		}
 	}
 
+	if !serviceFeeCap.Empty() {
+		if err := k.validateServiceFeeCap(ctx, serviceFeeCap); err != nil {
+			return err
+		}
+
+		requestContext.ServiceFeeCap = serviceFeeCap
+	}
+
 	maxRequestTimeout := k.MaxRequestTimeout(ctx)
 	if timeout > maxRequestTimeout {
 		return sdkerrors.Wrapf(types.ErrInvalidTimeout, "timeout [%d] must not be greater than the max request timeout [%d]", timeout, maxRequestTimeout)
@@ -191,10 +203,6 @@ func (k Keeper) UpdateRequestContext(
 
 	if len(providers) > 0 {
 		requestContext.Providers = providers
-	}
-
-	if !serviceFeeCap.Empty() {
-		requestContext.ServiceFeeCap = serviceFeeCap
 	}
 
 	if timeout > 0 {
@@ -1146,6 +1154,17 @@ func (k Keeper) ResetRequestContextsStateAndBatch(ctx sdk.Context) error {
 			return false
 		},
 	)
+
+	return nil
+}
+
+// validateServiceFeeCap validates the given service fee cap
+func (k Keeper) validateServiceFeeCap(ctx sdk.Context, serviceFeeCap sdk.Coins) error {
+	baseDenom := k.BaseDenom(ctx)
+
+	if len(serviceFeeCap) != 1 || serviceFeeCap[0].Denom != baseDenom {
+		return sdkerrors.Wrapf(types.ErrInvalidDeposit, "service fee cap only accepts %s", baseDenom)
+	}
 
 	return nil
 }
