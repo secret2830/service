@@ -985,7 +985,7 @@ func ValidateOwner(owner sdk.AccAddress) error {
 }
 
 func ValidateServiceDeposit(deposit sdk.Coins) error {
-	if !deposit.IsValid() || !deposit.IsAllPositive() {
+	if !deposit.IsValid() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, "invalid deposit")
 	}
 
@@ -1087,20 +1087,6 @@ func ValidateRequestContextUpdating(
 	return nil
 }
 
-func ValidateTrustee(trustee sdk.AccAddress) error {
-	if len(trustee) == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "trustee missing")
-	}
-	return nil
-}
-
-func ValidateDestAddress(destAddress sdk.AccAddress) error {
-	if len(destAddress) == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "destination address missing")
-	}
-	return nil
-}
-
 func ValidateConsumer(consumer sdk.AccAddress) error {
 	if len(consumer) == 0 {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "consumer missing")
@@ -1137,16 +1123,9 @@ func ValidateProvidersCanEmpty(providers []sdk.AccAddress) error {
 	return nil
 }
 
-func ValidateWithdrawAmount(amount sdk.Coins) error {
-	if !amount.IsValid() {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid withdrawal amount: %s", amount)
-	}
-	return nil
-}
-
 func ValidateServiceFeeCap(serviceFeeCap sdk.Coins) error {
 	if !serviceFeeCap.IsValid() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("invalid service fee: %s", serviceFeeCap))
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, fmt.Sprintf("invalid service fee cap: %s", serviceFeeCap))
 	}
 	return nil
 }
