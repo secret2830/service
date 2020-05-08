@@ -222,8 +222,8 @@ func validateSlashFraction(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 
-	if v.LTE(sdk.ZeroDec()) || v.GTE(sdk.OneDec()) {
-		return fmt.Errorf("slashing fraction must be between (0, 1): %s", v)
+	if v.LT(sdk.ZeroDec()) || v.GT(sdk.OneDec()) {
+		return fmt.Errorf("slashing fraction must be between [0, 1]: %s", v)
 	}
 
 	return nil
