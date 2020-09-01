@@ -3,7 +3,6 @@ package keeper
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	gogotypes "github.com/gogo/protobuf/types"
@@ -398,25 +397,25 @@ func (k Keeper) ParsePricing(ctx sdk.Context, pricing string) (p types.Pricing, 
 		return p, sdkerrors.Wrapf(types.ErrInvalidPricing, "failed to unmarshal the pricing: %s", err.Error())
 	}
 
-	denom, amtStr, err := types.ParseCoinParts(rawPricing.Price)
+	token, err := sdk.ParseDecCoin(rawPricing.Price)
 	if err != nil {
-		return p, sdkerrors.Wrapf(types.ErrInvalidPricing, "failed to parse the price: %s", err.Error())
+		tokenPrice, err := sdk.ParseCoin(rawPricing.Price)
+		if err != nil {
+			return p, sdkerrors.Wrapf(types.ErrInvalidPricing, "invalid price: %s", err.Error())
+		}
+		token = sdk.NewDecCoinFromCoin(tokenPrice)
 	}
-
-	amt, err := sdk.NewDecFromStr(amtStr)
-	if err != nil {
-		return p, sdkerrors.Wrapf(types.ErrInvalidPricing, fmt.Sprintf("failed to parse the price: %s", err))
-	}
-
-	token, err := k.tokenKeeper.GetToken(ctx, denom)
+	ft, err := k.tokenKeeper.GetToken(ctx, token.Denom)
 	if err != nil {
 		return p, sdkerrors.Wrapf(types.ErrInvalidPricing, "invalid price: %s", err.Error())
 	}
 
-	p.Price = sdk.NewCoins(sdk.NewCoin(
-		token.GetMinUnit(),
-		amt.Mul(sdk.NewDecFromInt(sdk.NewIntWithDecimal(1, int(token.GetScale())))).TruncateInt(),
-	))
+	priceCoin, err := ft.ToMinCoin(token)
+	if err != nil {
+		return p, sdkerrors.Wrapf(types.ErrInvalidPricing, "invalid price: %s", err.Error())
+	}
+
+	p.Price = sdk.NewCoins(priceCoin)
 	p.PromotionsByTime = rawPricing.PromotionsByTime
 	p.PromotionsByVolume = rawPricing.PromotionsByVolume
 
@@ -539,7 +538,12 @@ func (k Keeper) getMinDeposit(ctx sdk.Context, pricing types.Pricing) sdk.Coins 
 func (k Keeper) validateDeposit(ctx sdk.Context, deposit sdk.Coins) error {
 	baseDenom := k.BaseDenom(ctx)
 
-	if len(deposit) != 1 || deposit[0].Denom != baseDenom {
+	token, err := k.tokenKeeper.GetToken(ctx, deposit[0].Denom)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalidPricing, err.Error())
+	}
+
+	if len(deposit) != 1 || token.GetMinUnit() != baseDenom {
 		return sdkerrors.Wrapf(types.ErrInvalidDeposit, "deposit only accepts %s", baseDenom)
 	}
 
