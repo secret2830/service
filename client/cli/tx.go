@@ -909,8 +909,8 @@ $ %s tx service withdraw-fees <provider-address> --from mykey
 
 			var provider sdk.AccAddress
 
-			if len(args) > 1 {
-				provider, err = sdk.AccAddressFromBech32(args[1])
+			if len(args) == 1 {
+				provider, err = sdk.AccAddressFromBech32(args[0])
 				if err != nil {
 					return err
 				}
